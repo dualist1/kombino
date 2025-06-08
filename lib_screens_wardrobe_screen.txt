@@ -1,0 +1,66 @@
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+class WardrobeScreen extends StatefulWidget {
+  const WardrobeScreen({super.key});
+  @override
+  _WardrobeScreenState createState() => _WardrobeScreenState();
+}
+class _WardrobeScreenState extends State<WardrobeScreen> {
+  final _picker = ImagePicker();
+  final _firestore = FirebaseFirestore.instance;
+  final _storage = FirebaseStorage.instance;
+  Future<void> _addClothingItem() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      File file = File(pickedFile.path);
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      Reference storageRef = _storage.ref().child('clothing/$fileName');
+      await storageRef.putFile(file);
+      String downloadUrl = await storageRef.getDownloadURL();
+      await _firestore.collection('clothing').add({
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'imageUrl': downloadUrl,
+        'category': 'T-Shirt', // Placeholder, add category selection
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Clothing item added!')),
+      );
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Wardrobe')),
+      body: StreamBuilder(
+        stream: _firestore
+            .collection('clothing')
+            .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+            .snapshots(),
+        builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          return GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 1,
+            ),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              var doc = snapshot.data!.docs[index];
+              return Card(
+                child: Image.network(doc['imageUrl'], fit: BoxFit.cover),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addClothingItem,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}

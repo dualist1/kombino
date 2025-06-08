@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+class CombinationScreen extends StatelessWidget {
+  const CombinationScreen({super.key});
+  Future<void> _generateCombination(BuildContext context) async {
+    // Placeholder for combination algorithm
+    var clothingItems = await FirebaseFirestore.instance
+        .collection('clothing')
+        .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+        .get();
+    if (clothingItems.docs.isNotEmpty) {
+      // Simple random selection for demo
+      var randomItem = clothingItems.docs[0];
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Suggested: ${randomItem['category']}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add clothing items first!')),
+      );
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create Combination')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => _generateCombination(context),
+          child: const Text('Generate Combination'),
+        ),
+      ),
+    );
+  }
+}
